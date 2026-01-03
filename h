@@ -3,70 +3,85 @@ CHIP JunctionController {
     OUT X[3], Z[3];
     
     PARTS:
-    // State detection
-    Or(a=state0, b=state1, out=or01);
-    Or(a=state2, b=or01, out=or012);
-    Not(in=or012, out=isstate0);
+    // Check if current state is 5 (101) - need to wrap to 0
+    And(a=state0, b=notstate1, out=check5a);
+    And(a=check5a, b=state2, out=isState5);
     
-    Or(a=state1, b=state2, out=or12);
-    And(a=state0, b=or12, out=notstate1);
-    Not(in=notstate1, out=isstate1);
-    
-    And(a=state0, b=state1, out=and01);
-    Not(in=and01, out=notstate2);
-    And(a=state2, b=notstate2, out=isstate2temp);
-    Not(in=isstate2temp, out=isstate2);
-    
-    // 3-bit counter increment logic
-    Not(in=state0, out=next0);
-    Xor(a=state0, b=state1, out=next1);
-    And(a=state0, b=state1, out=both01);
-    Xor(a=both01, b=state2, out=next2);
-    
-    // Load control
-    Mux(a=state0, b=next0, sel=PowerOn, out=in0);
-    Mux(a=state1, b=next1, sel=PowerOn, out=in1);
-    Mux(a=state2, b=next2, sel=PowerOn, out=in2);
-    Or(a=PowerOn, b=false, out=load);
-    
-    // State storage
-    Bit(in=in0, load=load, out=state0);
-    Bit(in=in1, load=load, out=state1);
-    Bit(in=in2, load=load, out=state2);
-    
-    // State decoder
+    // If state is 5 and PowerOn, load 0; otherwise increment normally
     Not(in=state0, out=notstate0);
-    Not(in=state1, out=notstate1b);
-    Not(in=state2, out=notstate2b);
+    Not(in=state1, out=notstate1);
+    Not(in=state2, out=notstate2);
     
-    And(a=notstate0, b=notstate1b, out=s0check);
-    And(a=s0check, b=notstate2b, out=isS0);
+    // Normal increment logic
+    Not(in=state0, out=inc0);
+    Xor(a=state0, b=state1, out=inc1);
+    And(a=state0, b=state1, out=carry);
+    Xor(a=carry, b=state2, out=inc2);
     
-    And(a=state0, b=notstate1b, out=s1check);
-    And(a=s1check, b=notstate2b, out=isS1);
+    // If state5, reset to 0; otherwise use incremented value
+    Mux(a=inc0, b=false, sel=isState5, out=nextstate0);
+    Mux(a=inc1, b=false, sel=isState5, out=nextstate1);
+    Mux(a=inc2, b=false, sel=isState5, out=nextstate2);
     
-    And(a=notstate0, b=state1, out=s2check);
-    And(a=s2check, b=notstate2b, out=isS2);
+    // Load logic - update when PowerOn is high
+    Mux(a=state0, b=nextstate0, sel=PowerOn, out=toload0);
+    Mux(a=state1, b=nextstate1, sel=PowerOn, out=toload1);
+    Mux(a=state2, b=nextstate2, sel=PowerOn, out=toload2);
     
-    And(a=state0, b=state1, out=s3check);
-    And(a=s3check, b=notstate2b, out=isS3);
+    // State registers
+    Bit(in=toload0, load=PowerOn, out=state0);
+    Bit(in=toload1, load=PowerOn, out=state1);
+    Bit(in=toload2, load=PowerOn, out=state2);
     
-    And(a=notstate0, b=notstate1b, out=s4check);
-    And(a=s4check, b=state2, out=isS4);
+    // Decode states
+    // State 0: 000
+    Not(in=state0, out=n0);
+    Not(in=state1, out=n1);
+    Not(in=state2, out=n2);
+    And(a=n0, b=n1, out=s0temp);
+    And(a=s0temp, b=n2, out=isS0);
     
-    And(a=state0, b=notstate1b, out=s5check);
-    And(a=s5check, b=state2, out=isS5);
+    // State 1: 001
+    And(a=state0, b=n1, out=s1temp);
+    And(a=s1temp, b=n2, out=isS1);
     
-    // Output mapping
-    Or(a=isS2, b=isS3, out=X2temp1);
-    Or(a=isS4, b=isS5, out=X2temp2);
-    Or(a=X2temp1, b=X2temp2, out=X[2]);
+    // State 2: 010
+    And(a=n0, b=state1, out=s2temp);
+    And(a=s2temp, b=n2, out=isS2);
+    
+    // State 3: 011
+    And(a=state0, b=state1, out=s3temp);
+    And(a=s3temp, b=n2, out=isS3);
+    
+    // State 4: 100
+    And(a=n0, b=n1, out=s4temp);
+    And(a=s4temp, b=state2, out=isS4);
+    
+    // State 5: 101
+    And(a=state0, b=n1, out=s5temp);
+    And(a=s5temp, b=state2, out=isS5);
+    
+    // Traffic Light X
+    // X[2] (RED): states 2,3,4,5
+    Or(a=isS2, b=isS3, out=xred1);
+    Or(a=isS4, b=isS5, out=xred2);
+    Or(a=xred1, b=xred2, out=X[2]);
+    
+    // X[1] (AMBER): state 1 only
     Or(a=isS1, b=false, out=X[1]);
+    
+    // X[0] (GREEN): state 0 only
     Or(a=isS0, b=false, out=X[0]);
     
-    Or(a=isS0, b=isS1, out=Z2temp1);
-    Or(a=isS2, b=isS5, out=Z2temp2);
-    Or(a=Z2temp1, b=Z2temp2, out=Z[2]);
+    // Traffic Light Z
+    // Z[2] (RED): states 0,1,2,5
+    Or(a=isS0, b=isS1, out=zred1);
+    Or(a=isS2, b=isS5, out=zred2);
+    Or(a=zred1, b=zred2, out=Z[2]);
+    
+    // Z[1] (AMBER): state 4 only
     Or(a=isS4, b=false, out=Z[1]);
+    
+    // Z[0] (GREEN): state 3 only
     Or(a=isS3, b=false, out=Z[0]);
 }
