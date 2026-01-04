@@ -9,12 +9,12 @@ CHIP Crossing {
     Bit(in=newButtonLatch, load=PowerOn, out=buttonLatch);
     Or(a=buttonLatch, b=false, out=ButtonPressed);
     
-    // Junction state counter (0-7)
+    // Junction state counter (0 to 7)
     Not(in=jstate0, out=notjstate0);
     Not(in=jstate1, out=notjstate1);
     Not(in=jstate2, out=notjstate2);
     
-    // Check if at state 4 (100) both lights RED, ready to stop for crossing
+    // Check if at state 4 (100), both lights RED, ready to stop for crossing
     And(a=notjstate0, b=notjstate1, out=checkState4a);
     And(a=checkState4a, b=jstate2, out=atState4);
     
@@ -35,18 +35,19 @@ CHIP Crossing {
     And(a=jstate0, b=jstate1, out=jcarry);
     Xor(a=jcarry, b=jstate2, out=jnext2);
     
-    //increment junction counter when not in crossing mode
+    // increment junction counter when not in crossing mode
     And(a=PowerOn, b=Wait, out=junctionIncrement);
     
     Mux(a=jstate0, b=jnext0, sel=junctionIncrement, out=jin0);
     Mux(a=jstate1, b=jnext1, sel=junctionIncrement, out=jin1);
     Mux(a=jstate2, b=jnext2, sel=junctionIncrement, out=jin2);
     
-    Bit(in=jin0, load=PowerOn, out=jstate0);
-    Bit(in=jin1, load=PowerOn, out=jstate1);
-    Bit(in=jin2, load=PowerOn, out=jstate2);
+    Or(a=PowerOn, b=false, out=load1);
+    Bit(in=jin0, load=load1, out=jstate0);
+    Bit(in=jin1, load=load1, out=jstate1);
+    Bit(in=jin2, load=load1, out=jstate2);
     
-    //junction states
+    // Decode junction states
     And(a=notjstate0, b=notjstate1, out=js0a);
     And(a=js0a, b=notjstate2, out=js0);
     
@@ -71,7 +72,7 @@ CHIP Crossing {
     And(a=jstate0, b=jstate1, out=js7a);
     And(a=js7a, b=jstate2, out=js7);
     
-    // Traffic light X outputs
+    // Traffic light X outputs 
     Or(a=js0, b=js1, out=xr1);
     Or(a=js4, b=js5, out=xr2);
     Or(a=js6, b=js7, out=xr3);
