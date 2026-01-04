@@ -3,90 +3,79 @@ CHIP JunctionController {
     OUT X[3], Z[3];
     
     PARTS:
-    // 3-bit state counter that wraps from 5 back to 0
+    // 3-bit counter 0 to 7
     Not(in=state0, out=notstate0);
     Not(in=state1, out=notstate1);
     Not(in=state2, out=notstate2);
     
-    // Check if we're at state 5 (101)
-    And(a=state0, b=notstate1, out=check5);
-    And(a=check5, b=state2, out=atState5);
+    // Increment logic
+    Not(in=state0, out=next0);
+    Xor(a=state0, b=state1, out=next1);
+    And(a=state0, b=state1, out=carry);
+    Xor(a=carry, b=state2, out=next2);
     
-    // Increment: bit0 always flips
-    Not(in=state0, out=nextbit0);
-    
-    // Bit1 flips when bit0 is 1
-    Xor(a=state0, b=state1, out=nextbit1);
-    
-    // Bit2 flips when both bit0 and bit1 are 1
-    And(a=state0, b=state1, out=both);
-    Xor(a=both, b=state2, out=nextbit2);
-    
-    // If at state 5, next state is 0; otherwise increment
-    Mux(a=nextbit0, b=false, sel=atState5, out=next0);
-    Mux(a=nextbit1, b=false, sel=atState5, out=next1);
-    Mux(a=nextbit2, b=false, sel=atState5, out=next2);
-    
-    // When PowerOn, load next state; otherwise keep current
+    // Load next state when PowerOn=1 or else keep current state
     Mux(a=state0, b=next0, sel=PowerOn, out=in0);
     Mux(a=state1, b=next1, sel=PowerOn, out=in1);
     Mux(a=state2, b=next2, sel=PowerOn, out=in2);
     
-    // Store state
+    // State storage
     Bit(in=in0, load=PowerOn, out=state0);
     Bit(in=in1, load=PowerOn, out=state1);
     Bit(in=in2, load=PowerOn, out=state2);
     
-    // Decode each of 6 states
-    // State 0: 000
-    And(a=notstate0, b=notstate1, out=decode0a);
-    And(a=decode0a, b=notstate2, out=state0is);
+    // Decode 8 states 000 to 111
+    And(a=notstate0, b=notstate1, out=s0a);
+    And(a=s0a, b=notstate2, out=s0);
     
-    // State 1: 001
-    And(a=state0, b=notstate1, out=decode1a);
-    And(a=decode1a, b=notstate2, out=state1is);
+    And(a=state0, b=notstate1, out=s1a);
+    And(a=s1a, b=notstate2, out=s1);
     
-    // State 2: 010
-    And(a=notstate0, b=state1, out=decode2a);
-    And(a=decode2a, b=notstate2, out=state2is);
+    And(a=notstate0, b=state1, out=s2a);
+    And(a=s2a, b=notstate2, out=s2);
     
-    // State 3: 011
-    And(a=state0, b=state1, out=decode3a);
-    And(a=decode3a, b=notstate2, out=state3is);
+    And(a=state0, b=state1, out=s3a);
+    And(a=s3a, b=notstate2, out=s3);
     
-    // State 4: 100
-    And(a=notstate0, b=notstate1, out=decode4a);
-    And(a=decode4a, b=state2, out=state4is);
+    And(a=notstate0, b=notstate1, out=s4a);
+    And(a=s4a, b=state2, out=s4);
     
-    // State 5: 101
-    And(a=state0, b=notstate1, out=decode5a);
-    And(a=decode5a, b=state2, out=state5is);
+    And(a=state0, b=notstate1, out=s5a);
+    And(a=s5a, b=state2, out=s5);
     
-    // Traffic Light X outputs
-    // State 0: GREEN (001), State 1: AMBER (010), States 2-5: RED (100)
+    And(a=notstate0, b=state1, out=s6a);
+    And(a=s6a, b=state2, out=s6);
     
-    // X[2] RED: ON in states 2,3,4,5
-    Or(a=state2is, b=state3is, out=Xr1);
-    Or(a=state4is, b=state5is, out=Xr2);
-    Or(a=Xr1, b=Xr2, out=X[2]);
+    And(a=state0, b=state1, out=s7a);
+    And(a=s7a, b=state2, out=s7);
     
-    // X[1] AMBER: ON in state 1 only
-    And(a=state1is, b=true, out=X[1]);
+    // X outputs based on state
+    // X[2] (RED): states 0,1,4,5,6,7
+    Or(a=s0, b=s1, out=xr1);
+    Or(a=s4, b=s5, out=xr2);
+    Or(a=s6, b=s7, out=xr3);
+    Or(a=xr1, b=xr2, out=xr4);
+    Or(a=xr4, b=xr3, out=X[2]);
     
-    // X[0] GREEN: ON in state 0 only
-    And(a=state0is, b=true, out=X[0]);
+    // X[1] (AMBER): states 1,3
+    Or(a=s1, b=s3, out=X[1]);
     
-    // Traffic Light Z outputs
-    // States 0-2,5: RED (100), State 3: GREEN (001), State 4: AMBER (010)
+    // X[0] (GREEN): state 2 only
+    Or(a=s2, b=false, out=X[0]);
     
-    // Z[2] RED: ON in states 0,1,2,5
-    Or(a=state0is, b=state1is, out=Zr1);
-    Or(a=state2is, b=state5is, out=Zr2);
-    Or(a=Zr1, b=Zr2, out=Z[2]);
+    // Z outputs based on state
+    // Z[2] (RED): states 0,1,2,3,4,5,6,7 (always on!)
+    Or(a=s0, b=s1, out=zr1);
+    Or(a=s2, b=s3, out=zr2);
+    Or(a=s4, b=s5, out=zr3);
+    Or(a=s6, b=s7, out=zr4);
+    Or(a=zr1, b=zr2, out=zr5);
+    Or(a=zr3, b=zr4, out=zr6);
+    Or(a=zr5, b=zr6, out=Z[2]);
     
-    // Z[1] AMBER: ON in state 4 only
-    And(a=state4is, b=true, out=Z[1]);
+    // Z[1] (AMBER): states 5,7
+    Or(a=s5, b=s7, out=Z[1]);
     
-    // Z[0] GREEN: ON in state 3 only
-    And(a=state3is, b=true, out=Z[0]);
+    // Z[0] (GREEN): states 6,7
+    Or(a=s6, b=s7, out=Z[0]);
 }
