@@ -1,3 +1,4 @@
+
 CHIP Crossing {
     IN PowerOn, Button;
     OUT ButtonPressed, Wait, X[3], Z[3], C[7];
@@ -15,11 +16,11 @@ CHIP Crossing {
     Not(in=jstate1, out=notjstate1);
     Not(in=jstate2, out=notjstate2);
     
-    // Check if at state 4 (100),  both lights RED, ready to stop for crossing
+    // Check if at state 4 (100), both lights RED, ready to stop for crossing
     And(a=notjstate0, b=notjstate1, out=checkState4a);
     And(a=checkState4a, b=jstate2, out=atState4);
     
-    // Start crossing when button pressed and at state 4
+   // Start crossing when button pressed and at state 4
     And(a=buttonLatch, b=atState4, out=startCrossing);
     
     // Crossing state, once started, stays active until countdown finishes
@@ -74,7 +75,7 @@ CHIP Crossing {
     And(a=jstate0, b=jstate1, out=js7a);
     And(a=js7a, b=jstate2, out=js7);
     
-    // Traffic light X outputs
+    // Traffic light X outputs 
     Or(a=js0, b=js1, out=xr1);
     Or(a=js4, b=js5, out=xr2);
     Or(a=js6, b=js7, out=xr3);
@@ -100,7 +101,7 @@ CHIP Crossing {
     Or(a=cor01, b=cor23, out=countNotZero);
     Not(in=countNotZero, out=countIsZero);
     
-    // Counting done when counter reaches 0 and we're in crossing mode
+    // Counting done when counter reaches 0
     And(a=countIsZero, b=crossingActive, out=countingDone);
     Not(in=countingDone, out=notCountingDone);
     
@@ -136,9 +137,9 @@ CHIP Crossing {
     Mux(a=dec2, b=false, sel=wrapTo9, out=next2);
     Mux(a=dec3, b=true, sel=wrapTo9, out=next3);
     
-    Or(a=shouldDecrement, b=startCrossing, out=loadCounter);
-    And(a=loadCounter, b=PowerOn, out=counterLoadTemp);
-    Or(a=counterLoadTemp, b=false, out=loadCnt);
+    Or(a=shouldDecrement, b=startCrossing, out=shouldLoad);
+    Or(a=PowerOn, b=false, out=powerOnCopy);
+    And(a=shouldLoad, b=powerOnCopy, out=loadCnt);
     
     Bit(in=next0, load=loadCnt, out=count0);
     Bit(in=next1, load=loadCnt, out=count1);
