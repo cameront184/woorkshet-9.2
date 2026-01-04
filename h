@@ -3,7 +3,7 @@ CHIP JunctionController {
     OUT X[3], Z[3];
     
     PARTS:
-    // 3-bit counter 0 to 7
+    // Simple 3-bit counter counts 0 to 7
     Not(in=state0, out=notstate0);
     Not(in=state1, out=notstate1);
     Not(in=state2, out=notstate2);
@@ -14,7 +14,7 @@ CHIP JunctionController {
     And(a=state0, b=state1, out=carry);
     Xor(a=carry, b=state2, out=next2);
     
-    // Load next state when PowerOn=1 or else keep current state
+    // Load next state when PowerOn=1 else keep current state
     Mux(a=state0, b=next0, sel=PowerOn, out=in0);
     Mux(a=state1, b=next1, sel=PowerOn, out=in1);
     Mux(a=state2, b=next2, sel=PowerOn, out=in2);
@@ -64,14 +64,12 @@ CHIP JunctionController {
     Or(a=s2, b=false, out=X[0]);
     
     // Z outputs based on state
-    // Z[2] (RED): states 0,1,2,3,4,5,6,7 (always on!)
+    // Z[2] (RED): states 0,1,2,3,4,5 only (NOT 6,7!)
     Or(a=s0, b=s1, out=zr1);
     Or(a=s2, b=s3, out=zr2);
     Or(a=s4, b=s5, out=zr3);
-    Or(a=s6, b=s7, out=zr4);
-    Or(a=zr1, b=zr2, out=zr5);
-    Or(a=zr3, b=zr4, out=zr6);
-    Or(a=zr5, b=zr6, out=Z[2]);
+    Or(a=zr1, b=zr2, out=zr4);
+    Or(a=zr4, b=zr3, out=Z[2]);
     
     // Z[1] (AMBER): states 5,7
     Or(a=s5, b=s7, out=Z[1]);
