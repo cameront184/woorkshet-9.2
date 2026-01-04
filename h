@@ -3,7 +3,7 @@ CHIP JunctionController {
     OUT X[3], Z[3];
     
     PARTS:
-    // Simple 3-bit counter counts 0 to 7
+    // Simple 3-bit counter (counts 0-7)
     Not(in=state0, out=notstate0);
     Not(in=state1, out=notstate1);
     Not(in=state2, out=notstate2);
@@ -14,7 +14,7 @@ CHIP JunctionController {
     And(a=state0, b=state1, out=carry);
     Xor(a=carry, b=state2, out=next2);
     
-    // Load next state when PowerOn=1 else keep current state
+    // Load next state when PowerOn=1, else keep current
     Mux(a=state0, b=next0, sel=PowerOn, out=in0);
     Mux(a=state1, b=next1, sel=PowerOn, out=in1);
     Mux(a=state2, b=next2, sel=PowerOn, out=in2);
@@ -24,7 +24,7 @@ CHIP JunctionController {
     Bit(in=in1, load=PowerOn, out=state1);
     Bit(in=in2, load=PowerOn, out=state2);
     
-    // Decode 8 states 000 to 111
+    // Decode 8 states (000 to 111)
     And(a=notstate0, b=notstate1, out=s0a);
     And(a=s0a, b=notstate2, out=s0);
     
@@ -74,6 +74,6 @@ CHIP JunctionController {
     // Z[1] (AMBER): states 5,7
     Or(a=s5, b=s7, out=Z[1]);
     
-    // Z[0] (GREEN): states 6,7
-    Or(a=s6, b=s7, out=Z[0]);
+    // Z[0] (GREEN): state 6 only
+    Or(a=s6, b=false, out=Z[0]);
 }
