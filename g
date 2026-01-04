@@ -6,7 +6,8 @@ CHIP Crossing {
     // Button latch stays high once pressed until crossing completes
     Or(a=Button, b=buttonLatch, out=buttonOrLatch);
     And(a=buttonOrLatch, b=notCountingDone, out=newButtonLatch);
-    Bit(in=newButtonLatch, load=PowerOn, out=buttonLatch);
+    Or(a=PowerOn, b=false, out=load0);
+    Bit(in=newButtonLatch, load=load0, out=buttonLatch);
     Or(a=buttonLatch, b=false, out=ButtonPressed);
     
     // Junction state counter (0 to 7)
@@ -14,7 +15,7 @@ CHIP Crossing {
     Not(in=jstate1, out=notjstate1);
     Not(in=jstate2, out=notjstate2);
     
-    // Check if at state 4 (100), both lights RED, ready to stop for crossing
+    // Check if at state 4 (100),  both lights RED, ready to stop for crossing
     And(a=notjstate0, b=notjstate1, out=checkState4a);
     And(a=checkState4a, b=jstate2, out=atState4);
     
@@ -24,9 +25,10 @@ CHIP Crossing {
     // Crossing state, once started, stays active until countdown finishes
     Or(a=startCrossing, b=crossingActive, out=newCrossingActive);
     And(a=newCrossingActive, b=notCountingDone, out=nextCrossingActive);
-    Bit(in=nextCrossingActive, load=PowerOn, out=crossingActive);
+    Or(a=PowerOn, b=false, out=load2);
+    Bit(in=nextCrossingActive, load=load2, out=crossingActive);
     
-    // Wait signal, 1 when lights are cycling normally, 0 during crossing
+    // 1 when lights are cycling normally, 0 during crossing
     Not(in=crossingActive, out=Wait);
     
     // Junction counter increment logic
@@ -35,7 +37,7 @@ CHIP Crossing {
     And(a=jstate0, b=jstate1, out=jcarry);
     Xor(a=jcarry, b=jstate2, out=jnext2);
     
-    // increment junction counter when not in crossing mode
+    // Only increment junction counter when not in crossing mode
     And(a=PowerOn, b=Wait, out=junctionIncrement);
     
     Mux(a=jstate0, b=jnext0, sel=junctionIncrement, out=jin0);
@@ -72,7 +74,7 @@ CHIP Crossing {
     And(a=jstate0, b=jstate1, out=js7a);
     And(a=js7a, b=jstate2, out=js7);
     
-    // Traffic light X outputs 
+    // Traffic light X outputs
     Or(a=js0, b=js1, out=xr1);
     Or(a=js4, b=js5, out=xr2);
     Or(a=js6, b=js7, out=xr3);
@@ -98,7 +100,7 @@ CHIP Crossing {
     Or(a=cor01, b=cor23, out=countNotZero);
     Not(in=countNotZero, out=countIsZero);
     
-    // Counting done when counter reaches 0
+    // Counting done when counter reaches 0 and we're in crossing mode
     And(a=countIsZero, b=crossingActive, out=countingDone);
     Not(in=countingDone, out=notCountingDone);
     
@@ -135,12 +137,13 @@ CHIP Crossing {
     Mux(a=dec3, b=true, sel=wrapTo9, out=next3);
     
     Or(a=shouldDecrement, b=startCrossing, out=loadCounter);
-    And(a=loadCounter, b=PowerOn, out=counterLoad);
+    And(a=loadCounter, b=PowerOn, out=counterLoadTemp);
+    Or(a=counterLoadTemp, b=false, out=loadCnt);
     
-    Bit(in=next0, load=counterLoad, out=count0);
-    Bit(in=next1, load=counterLoad, out=count1);
-    Bit(in=next2, load=counterLoad, out=count2);
-    Bit(in=next3, load=counterLoad, out=count3);
+    Bit(in=next0, load=loadCnt, out=count0);
+    Bit(in=next1, load=loadCnt, out=count1);
+    Bit(in=next2, load=loadCnt, out=count2);
+    Bit(in=next3, load=loadCnt, out=count3);
     
     // 7-segment decoder
     Decoder(in[0]=count0, in[1]=count1, in[2]=count2, in[3]=count3,
